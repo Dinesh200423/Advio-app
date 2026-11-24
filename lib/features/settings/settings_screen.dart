@@ -8,6 +8,7 @@ import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../auth/auth_providers.dart';
+import '../../core/update/app_update.dart';
 import 'settings_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -54,7 +55,7 @@ class SettingsScreen extends ConsumerWidget {
         ]),
         const SizedBox(height: 20),
         _Group(title: 'About', rows: [
-          _Row('App information', 'Version 1.0.0', Routes.settingsAbout),
+          _Row('App information', 'Version ${ref.watch(installedVersionProvider).asData?.value ?? ''}', Routes.settingsAbout),
         ]),
         const SizedBox(height: 28),
         AppButton.secondary(

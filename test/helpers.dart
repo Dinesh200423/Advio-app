@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freelance_os/app/app.dart';
+import 'package:freelance_os/core/update/app_update.dart';
 import 'package:freelance_os/features/auth/auth_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,6 +19,9 @@ Future<ProviderContainer> pumpApp(
   bool signedIn = true,
   Size size = const Size(390, 844),
   List<Override> overrides = const [],
+
+  /// What the update check finds. Defaults to nothing, so no test touches the network or meets an update prompt.
+  UpdateChecker? updateCheck,
 }) async {
   GoogleFonts.config.allowRuntimeFetching = false;
   tester.view.physicalSize = Size(size.width * 3, size.height * 3);
@@ -25,7 +29,12 @@ Future<ProviderContainer> pumpApp(
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer(
-    overrides: [if (signedIn) authProvider.overrideWith(_SignedInAuth.new), ...overrides],
+    overrides: [
+      if (signedIn) authProvider.overrideWith(_SignedInAuth.new),
+      updateCheckerProvider.overrideWithValue(updateCheck ?? () async => null),
+      installedVersionProvider.overrideWith((ref) async => '1.0.0'),
+      ...overrides,
+    ],
   );
   addTearDown(container.dispose);
 

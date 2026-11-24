@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_text.dart';
 import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/update/app_update.dart';
+import '../../core/update/update_prompt.dart';
 import '../../core/utils/formatters.dart';
+import '../../data/backend/backend_config.dart';
 import 'settings_providers.dart';
 
 class CurrencyScreen extends ConsumerWidget {
@@ -182,11 +185,34 @@ class AppearanceScreen extends ConsumerWidget {
   }
 }
 
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends ConsumerStatefulWidget {
   const AboutScreen({super.key});
 
   @override
+  ConsumerState<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends ConsumerState<AboutScreen> {
+  bool _checking = false;
+
+  Future<void> _checkForUpdates() async {
+    setState(() => _checking = true);
+    final installed = await ref.read(installedVersionProvider.future);
+    final latest = await ref.read(updateCheckerProvider)();
+    if (!mounted) return;
+    setState(() => _checking = false);
+    if (latest == null) {
+      AppSnack.info(context, 'Could not check for updates right now.');
+    } else if (!isNewerVersion(latest.version, installed)) {
+      AppSnack.success(context, 'You are on the latest version.');
+    } else {
+      await showUpdateDialog(context, ref, latest, installed: installed);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final version = ref.watch(installedVersionProvider).asData?.value ?? '';
     return PageScaffold(
       title: 'App information',
       children: [
@@ -201,17 +227,19 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const InfoCard(children: [
-          InfoRow(label: 'Version', value: '1.0.0 (build 1)'),
-          InfoRow(label: 'Release', value: 'Phase 1 prototype'),
-          InfoRow(label: 'Data', value: 'Sample data, kept in memory'),
-          InfoRow(label: 'Backend', value: 'Not connected'),
+        InfoCard(children: [
+          InfoRow(label: 'Version', value: version),
+          InfoRow(label: 'Data', value: BackendConfig.isConfigured ? 'Saved to the ADVIO database' : 'Sample data, kept in memory'),
         ]),
         const SizedBox(height: 16),
-        Text(
-          'This build is a front-end prototype. Everything you add or change lasts until the app is closed, and nothing is sent anywhere.',
-          style: AppText.caption.copyWith(height: 1.5),
-        ),
+        AppButton.secondary(label: 'Check for updates', onPressed: _checking ? null : _checkForUpdates, loading: _checking),
+        if (!BackendConfig.isConfigured) ...[
+          const SizedBox(height: 16),
+          Text(
+            'This copy is running on sample data. Everything you add or change lasts until the app is closed, and nothing is sent anywhere.',
+            style: AppText.caption.copyWith(height: 1.5),
+          ),
+        ],
       ],
     );
   }

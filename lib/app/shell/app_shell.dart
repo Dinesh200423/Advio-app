@@ -1,16 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/update/app_update.dart';
+import '../../core/update/update_prompt.dart';
 import '../router/routes.dart';
 import '../theme/app_text.dart';
 
 /// Persistent frame for every main screen: bottom navigation + global quick-action button.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
+
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Once per launch, offer a newer version if there is one. A failed check stays silent.
+    ref.listenManual(availableUpdateProvider, (_, next) {
+      final update = next.asData?.value;
+      if (update == null || ref.read(updatePromptedProvider)) return;
+      ref.read(updatePromptedProvider.notifier).markShown();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showUpdateDialog(context, ref, update, installed: ref.read(installedVersionProvider).asData?.value ?? '');
+      });
+    }, fireImmediately: true);
+  }
 
   static const _tabs = [
     (label: 'Home', icon: Icons.home_outlined, selected: Icons.home_rounded, route: Routes.home),
@@ -29,7 +52,7 @@ class AppShell extends StatelessWidget {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: child,
+      body: widget.child,
       floatingActionButton: AnimatedScale(
         scale: showFab ? 1 : 0,
         duration: const Duration(milliseconds: 180),

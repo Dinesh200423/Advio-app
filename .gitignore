@@ -49,3 +49,8 @@ app.*.map.json
 
 # Backend keys for local runs (copy env.example.json to env.json)
 /env.json
+
+# Release signing: the key and its passwords never go in git
+/android/key.properties
+*.jks
+*.keystore

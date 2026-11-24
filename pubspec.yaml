@@ -18,6 +18,8 @@ dependencies:
   sentry_flutter: ^10.6.0
   supabase_flutter: ^2.18.3
   uuid: ^4.6.0
+  package_info_plus: ^10.2.2
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
