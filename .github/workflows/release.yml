@@ -73,6 +73,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          # The checkout step turns the tag into a plain pointer, so fetch the tag again to get its message.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           NOTES="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
           [ -z "$NOTES" ] && NOTES="Improvements and fixes."
           gh release create "$GITHUB_REF_NAME" "ADVIO-$VERSION.apk" --title "ADVIO $VERSION" --notes "$NOTES"
