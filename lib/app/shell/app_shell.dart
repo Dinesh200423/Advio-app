@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/update/app_update.dart';
 import '../../core/update/update_prompt.dart';
+import '../../features/auth/session_loader.dart';
 import '../router/routes.dart';
 import '../theme/app_text.dart';
 
@@ -23,6 +24,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    // Keep the lists current while the app is open (a no-op on sample data).
+    ref.read(liveUpdatesProvider);
     // Once per launch, offer a newer version if there is one. A failed check stays silent.
     ref.listenManual(availableUpdateProvider, (_, next) {
       final update = next.asData?.value;

@@ -43,7 +43,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
 
     return PageScaffold(
       title: 'Invoices',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       actions: [
         TextButton(onPressed: () => context.push(Routes.payments), child: const Text('Payments')),
       ],

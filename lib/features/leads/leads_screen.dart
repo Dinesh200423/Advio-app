@@ -69,7 +69,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
       title: 'Leads',
       subtitle: '${open.length} open · ${ref.money(pipeline, compact: true)} in pipeline',
       large: true,
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       actions: [
         TextButton(onPressed: () => context.push(Routes.leadQuickAdd), child: const Text('Quick add')),
         IconButton.filled(

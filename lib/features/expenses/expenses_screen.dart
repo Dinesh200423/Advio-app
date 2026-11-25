@@ -71,7 +71,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     return PageScaffold(
       title: 'Expenses',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: FloatingActionButton.extended(
         onPressed: () => context.push(Routes.expenseNew),
         icon: const Icon(Icons.add_rounded),

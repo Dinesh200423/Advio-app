@@ -45,7 +45,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
       title: 'Projects',
       subtitle: '${active.length} active · ${ref.money(activeBudget, compact: true)} in progress',
       large: true,
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       actions: [
         IconButton.filled(
           tooltip: 'Create project',

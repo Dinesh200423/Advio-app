@@ -56,7 +56,7 @@ class _ChecklistsScreenState extends ConsumerState<ChecklistsScreen> {
       actions: [
         TextButton(onPressed: () => context.push(Routes.templates), child: const Text('Templates')),
       ],
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: FloatingActionButton.extended(
         onPressed: () => showNewChecklistSheet(context),
         icon: const Icon(Icons.add_rounded),

@@ -33,7 +33,7 @@ class FinanceScreen extends ConsumerWidget {
       title: 'Finance',
       subtitle: Fmt.monthYear(DateTime.now()),
       large: true,
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       actions: [
         IconButton.filled(
           tooltip: 'New invoice',

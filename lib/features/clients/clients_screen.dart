@@ -35,7 +35,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 
     return PageScaffold(
       title: 'Clients',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: FloatingActionButton.extended(
         onPressed: () => context.push(Routes.clientNew),
         icon: const Icon(Icons.add_rounded),

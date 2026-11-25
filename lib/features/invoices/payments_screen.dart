@@ -36,7 +36,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
 
     return PageScaffold(
       title: 'Payments',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       children: [
         MetricGrid(
           children: [

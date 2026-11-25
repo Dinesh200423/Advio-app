@@ -34,7 +34,7 @@ class DashboardScreen extends ConsumerWidget {
       title: '${Fmt.greeting()}, ${ref.watch(currentMemberProvider)?.firstName ?? settings.firstName} 👋',
       subtitle: Fmt.dateLong(DateTime.now()),
       large: true,
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       actions: const [_NotificationBell()],
       children: const [
         _AttentionCard(),

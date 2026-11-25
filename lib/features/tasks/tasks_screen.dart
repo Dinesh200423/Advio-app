@@ -100,7 +100,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     return PageScaffold(
       title: 'Tasks',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: FloatingActionButton.extended(
         onPressed: () => context.push(Routes.taskNew()),
         icon: const Icon(Icons.add_rounded),

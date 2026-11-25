@@ -46,7 +46,7 @@ class _QuotationsScreenState extends ConsumerState<QuotationsScreen> {
 
     return PageScaffold(
       title: 'Quotations',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: FloatingActionButton.extended(
         onPressed: () => context.push(Routes.quotationNew()),
         icon: const Icon(Icons.add_rounded),

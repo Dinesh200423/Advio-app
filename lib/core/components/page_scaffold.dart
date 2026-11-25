@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_text.dart';
 import '../constants/app_colors.dart';
+import '../../data/repositories/save_failures.dart';
+import '../../features/auth/session_loader.dart';
 import '../constants/app_spacing.dart';
 import 'app_button.dart';
 import 'states.dart';
@@ -127,10 +130,15 @@ class _LargeTitle extends StatelessWidget {
   }
 }
 
-/// Simulated pull-to-refresh used while data is local.
-Future<void> mockRefresh(BuildContext context) async {
-  await Future<void>.delayed(const Duration(milliseconds: 700));
-  if (context.mounted) AppSnack.info(context, 'You\'re all caught up');
+/// Pull-to-refresh: reloads everything from the database (or just pauses briefly on sample data).
+Future<void> pullToRefresh(BuildContext context) async {
+  final refresh = ProviderScope.containerOf(context).read(dataRefreshProvider);
+  try {
+    await refresh();
+    if (context.mounted) AppSnack.info(context, 'Up to date');
+  } on RepositoryException catch (e) {
+    if (context.mounted) AppSnack.error(context, e.message);
+  }
 }
 
 /// Scaffold for create/edit forms: validates, shows a saving state, pops with a success message.

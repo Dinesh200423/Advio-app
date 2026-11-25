@@ -35,7 +35,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
 
     return PageScaffold(
       title: 'Support & Maintenance',
-      onRefresh: () => mockRefresh(context),
+      onRefresh: () => pullToRefresh(context),
       fab: _tab == 0
           ? FloatingActionButton.extended(
               onPressed: () => context.push(Routes.ticketNew()),
