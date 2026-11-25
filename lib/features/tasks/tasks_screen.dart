@@ -9,6 +9,8 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/task.dart';
 import '../team/team_providers.dart';
+import '../../data/models/modules.dart';
+import '../team/module_access.dart';
 import 'task_providers.dart';
 import 'widgets/task_tile.dart';
 
@@ -101,11 +103,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     return PageScaffold(
       title: 'Tasks',
       onRefresh: () => pullToRefresh(context),
-      fab: FloatingActionButton.extended(
-        onPressed: () => context.push(Routes.taskNew()),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add task'),
-      ),
+      fab: ref.watch(canUseProvider(AppModule.tasks))
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push(Routes.taskNew()),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add task'),
+            )
+          : null,
       header: Column(
         children: [
           Row(

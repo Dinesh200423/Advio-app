@@ -6,6 +6,7 @@ import '../models/enums.dart';
 import '../models/expense.dart';
 import '../models/invoice.dart';
 import '../models/lead.dart';
+import '../models/modules.dart';
 import '../models/project.dart';
 import '../models/quotation.dart';
 import '../models/support.dart';
@@ -53,6 +54,13 @@ T? _enumOrNull<T extends Enum>(List<T> values, Object? name) => name == null ? n
 List<T> _list<T>(Object? v, T Function(Json) fromJson) => [for (final e in (v as List? ?? const [])) fromJson(Json.from(e as Map))];
 
 // ---------------------------------------------------------------- nested values (stored as jsonb)
+
+/// Module names from the database. Names this version of the app does not know are ignored.
+Set<AppModule> _modules(Object? raw) {
+  if (raw is! List) return {};
+  final byName = {for (final m in AppModule.values) m.name: m};
+  return {for (final name in raw) ?byName[name]};
+}
 
 Json _noteJson(Note n) => {'id': n.id, 'text': n.text, 'at': _ts(n.at)};
 Note _note(Json j) => Note(id: j['id'] as String, text: _str(j['text']), at: _dt(j['at']));
@@ -206,6 +214,7 @@ abstract final class Codecs {
       'email': m.email,
       'phone': m.phone,
       'active': m.active,
+      'modules': [for (final module in m.modules) module.name],
       'joined_at': _ts(m.joinedAt),
     },
     fromRow: (r) => TeamMember(
@@ -216,6 +225,9 @@ abstract final class Codecs {
       phone: _str(r['phone']),
       active: r['active'] as bool? ?? true,
       joinedAt: _dt(r['joined_at']),
+      // user_id is only ever set by the server; its presence means a login is linked.
+      hasLogin: r['user_id'] != null,
+      modules: _modules(r['modules']),
     ),
   );
 

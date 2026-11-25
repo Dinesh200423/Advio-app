@@ -8,6 +8,7 @@ import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/enums.dart';
+import '../../data/models/modules.dart';
 import '../clients/client_providers.dart';
 import '../invoices/invoice_providers.dart';
 import '../invoices/widgets/invoice_tile.dart';
@@ -17,6 +18,7 @@ import '../projects/project_providers.dart';
 import '../reports/report_providers.dart';
 import '../settings/settings_providers.dart';
 import '../tasks/task_providers.dart';
+import '../team/module_access.dart';
 import '../team/team_providers.dart';
 import '../team/team_workload.dart';
 import '../tasks/widgets/task_tile.dart';
@@ -29,6 +31,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+    bool can(AppModule m) => ref.watch(canUseProvider(m));
 
     return PageScaffold(
       title: '${Fmt.greeting()}, ${ref.watch(currentMemberProvider)?.firstName ?? settings.firstName} 👋',
@@ -36,19 +39,18 @@ class DashboardScreen extends ConsumerWidget {
       large: true,
       onRefresh: () => pullToRefresh(context),
       actions: const [_NotificationBell()],
-      children: const [
-        _AttentionCard(),
-        SizedBox(height: 20),
-        _QuickActions(),
-        SizedBox(height: 24),
-        _Kpis(),
-        SizedBox(height: 24),
-        _RevenueChart(),
-        _TodaysTasks(),
-        _OutstandingInvoices(),
-        _UpcomingDeadlines(),
-        _RecentLeads(),
-        _RecentActivity(),
+      // Sections for modules this person does not have are left out. Their own tasks always show.
+      children: [
+        const _AttentionCard(),
+        const SizedBox(height: 20),
+        const _QuickActions(),
+        const _Kpis(),
+        if (can(AppModule.invoices)) const _RevenueChart(),
+        const _TodaysTasks(),
+        if (can(AppModule.invoices)) const _OutstandingInvoices(),
+        if (can(AppModule.tasks) || can(AppModule.projects)) const _UpcomingDeadlines(),
+        if (can(AppModule.leads)) const _RecentLeads(),
+        const _RecentActivity(),
       ],
     );
   }
@@ -118,8 +120,7 @@ class _AttentionCard extends ConsumerWidget {
     final followUps = ref.watch(dueFollowUpsProvider).where((d) => d.lead.ownerId == me).length;
     final orphans = ref.watch(workloadProvider(null));
     final unowned = orphans.openTasks + orphans.openLeads;
-    final overdueInvoices =
-        ref.watch(outstandingInvoicesProvider).where((i) => i.displayStatus == InvoiceStatus.overdue).toList();
+    final overdueInvoices = ref.watch(outstandingInvoicesProvider).where((i) => i.displayStatus == InvoiceStatus.overdue).toList();
     final overdueAmount = ref.watch(overdueTotalProvider);
 
     // Reminders on this card follow the matching automation rules.
@@ -127,7 +128,7 @@ class _AttentionCard extends ConsumerWidget {
     bool on(AutomationKind k) => rules.any((r) => r.kind == k && r.enabled);
 
     final items = <({IconData icon, Color color, String text, String route})>[
-      if (overdueInvoices.isNotEmpty && on(AutomationKind.invoice))
+      if (overdueInvoices.isNotEmpty && on(AutomationKind.invoice) && ref.watch(canUseProvider(AppModule.invoices)))
         (
           icon: Icons.receipt_long_rounded,
           color: AppColors.danger,
@@ -135,11 +136,26 @@ class _AttentionCard extends ConsumerWidget {
           route: '${Routes.invoices}?status=overdue',
         ),
       if (overdueTasks > 0 && on(AutomationKind.task))
-        (icon: Icons.warning_amber_rounded, color: AppColors.danger, text: '$overdueTasks overdue task${overdueTasks == 1 ? '' : 's'}', route: '${Routes.tasks}?view=overdue&assignee=$me'),
+        (
+          icon: Icons.warning_amber_rounded,
+          color: AppColors.danger,
+          text: '$overdueTasks overdue task${overdueTasks == 1 ? '' : 's'}',
+          route: '${Routes.tasks}?view=overdue&assignee=$me',
+        ),
       if (followUps > 0 && on(AutomationKind.followUp))
-        (icon: Icons.event_available_rounded, color: AppColors.warning, text: '$followUps lead follow-up${followUps == 1 ? '' : 's'} due', route: '${Routes.leads}?due=1&owner=$me'),
+        (
+          icon: Icons.event_available_rounded,
+          color: AppColors.warning,
+          text: '$followUps lead follow-up${followUps == 1 ? '' : 's'} due',
+          route: '${Routes.leads}?due=1&owner=$me',
+        ),
       if (todayTasks > 0 && on(AutomationKind.task))
-        (icon: Icons.today_rounded, color: AppColors.primary, text: '$todayTasks task${todayTasks == 1 ? '' : 's'} due today', route: '${Routes.tasks}?view=today&assignee=$me'),
+        (
+          icon: Icons.today_rounded,
+          color: AppColors.primary,
+          text: '$todayTasks task${todayTasks == 1 ? '' : 's'} due today',
+          route: '${Routes.tasks}?view=today&assignee=$me',
+        ),
       if (unowned > 0)
         (icon: Icons.person_off_outlined, color: AppColors.muted, text: '$unowned item${unowned == 1 ? '' : 's'} with no owner', route: Routes.team),
     ];
@@ -179,7 +195,9 @@ class _AttentionCard extends ConsumerWidget {
                       ),
                       Icon(i.icon, size: 18, color: i.color),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(i.text, style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w500))),
+                      Expanded(
+                        child: Text(i.text, style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w500)),
+                      ),
                       const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 20),
                     ],
                   ),
@@ -191,23 +209,30 @@ class _AttentionCard extends ConsumerWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
+class _QuickActions extends ConsumerWidget {
   const _QuickActions();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final actions = [
-      (icon: Icons.person_add_alt_1_rounded, label: 'Lead', color: AppColors.primary, route: Routes.leadNew),
-      (icon: Icons.task_alt_rounded, label: 'Task', color: AppColors.secondary, route: Routes.taskNew()),
-      (icon: Icons.create_new_folder_rounded, label: 'Project', color: AppColors.success, route: Routes.projectNew()),
-      (icon: Icons.receipt_long_rounded, label: 'Invoice', color: AppColors.warning, route: Routes.invoiceNew()),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(padding: const EdgeInsets.only(bottom: 10), child: Text('Quick add', style: AppText.label)),
-        _actionRow(context, actions),
-      ],
+      (module: AppModule.leads, icon: Icons.person_add_alt_1_rounded, label: 'Lead', color: AppColors.primary, route: Routes.leadNew),
+      (module: AppModule.tasks, icon: Icons.task_alt_rounded, label: 'Task', color: AppColors.secondary, route: Routes.taskNew()),
+      (module: AppModule.projects, icon: Icons.create_new_folder_rounded, label: 'Project', color: AppColors.success, route: Routes.projectNew()),
+      (module: AppModule.invoices, icon: Icons.receipt_long_rounded, label: 'Invoice', color: AppColors.warning, route: Routes.invoiceNew()),
+    ].where((a) => ref.watch(canUseProvider(a.module))).map((a) => (icon: a.icon, label: a.label, color: a.color, route: a.route)).toList();
+    if (actions.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text('Quick add', style: AppText.label),
+          ),
+          _actionRow(context, actions),
+        ],
+      ),
     );
   }
 
@@ -222,9 +247,18 @@ class _QuickActions extends StatelessWidget {
               onTap: () => context.push(actions[i].route),
               child: Column(
                 children: [
-                  Container(width: 18, height: 3, decoration: BoxDecoration(color: actions[i].color, borderRadius: BorderRadius.circular(3))),
+                  Container(
+                    width: 18,
+                    height: 3,
+                    decoration: BoxDecoration(color: actions[i].color, borderRadius: BorderRadius.circular(3)),
+                  ),
                   const SizedBox(height: 10),
-                  Text('+ ${actions[i].label}', style: AppText.labelStrong.copyWith(color: AppColors.ink), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    '+ ${actions[i].label}',
+                    style: AppText.labelStrong.copyWith(color: AppColors.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -249,14 +283,15 @@ class _Kpis extends ConsumerWidget {
     final last = months.length > 1 ? months.first.revenue : 0.0;
     final delta = last == 0 ? null : (revenue - last) / last;
 
-    return MetricGrid(
-      children: [
+    final cards = <Widget>[
+      if (ref.watch(canUseProvider(AppModule.clients)))
         MetricCard(
           label: 'Total clients',
           value: '${clients.length}',
           caption: '${clients.where((c) => c.status == ClientStatus.active).length} active',
           onTap: () => context.push(Routes.clients),
         ),
+      if (ref.watch(canUseProvider(AppModule.projects)))
         MetricCard(
           label: 'Active projects',
           value: '${projects.where((p) => p.status == ProjectStatus.active).length}',
@@ -264,6 +299,7 @@ class _Kpis extends ConsumerWidget {
           caption: '${projects.where((p) => p.status == ProjectStatus.planned).length} planned',
           onTap: () => context.go(Routes.projects),
         ),
+      if (ref.watch(canUseProvider(AppModule.invoices)))
         MetricCard(
           label: 'Monthly revenue',
           value: ref.money(revenue, compact: true),
@@ -272,15 +308,18 @@ class _Kpis extends ConsumerWidget {
           captionColor: delta == null ? null : (delta >= 0 ? AppColors.success : AppColors.danger),
           onTap: () => context.push(Routes.reports),
         ),
-        MetricCard(
-          label: 'Pending tasks',
-          value: '$pending',
-          color: AppColors.warning,
-          caption: overdue > 0 ? '$overdue overdue' : 'All on track',
-          captionColor: overdue > 0 ? AppColors.danger : AppColors.success,
-          onTap: () => context.push(Routes.tasks),
-        ),
-      ],
+      MetricCard(
+        label: 'Pending tasks',
+        value: '$pending',
+        color: AppColors.warning,
+        caption: overdue > 0 ? '$overdue overdue' : 'All on track',
+        captionColor: overdue > 0 ? AppColors.danger : AppColors.success,
+        onTap: () => context.push(Routes.tasks),
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: MetricGrid(children: cards),
     );
   }
 }
@@ -321,7 +360,14 @@ class _TodaysTasks extends ConsumerWidget {
         SectionHeader(title: 'Your tasks today', actionLabel: 'See all', onAction: () => context.push('${Routes.tasks}?view=today&assignee=$me')),
         if (tasks.isEmpty)
           AppCard(
-            child: EmptyState(icon: Icons.celebration_rounded, title: 'Nothing due today', message: 'Enjoy the breathing room or plan ahead.', compact: true, actionLabel: 'Add task', onAction: () => context.push(Routes.taskNew())),
+            child: EmptyState(
+              icon: Icons.celebration_rounded,
+              title: 'Nothing due today',
+              message: 'Enjoy the breathing room or plan ahead.',
+              compact: true,
+              actionLabel: 'Add task',
+              onAction: () => context.push(Routes.taskNew()),
+            ),
           )
         else
           for (final t in tasks.take(4)) TaskTile(task: t),
@@ -429,7 +475,10 @@ class _DeadlineRow extends StatelessWidget {
               child: Column(
                 children: [
                   Text('${deadline.date.day}', style: AppText.cardTitle.copyWith(color: color, height: 1.1)),
-                  Text(Fmt.month(deadline.date).toUpperCase(), style: AppText.caption.copyWith(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+                  Text(
+                    Fmt.month(deadline.date).toUpperCase(),
+                    style: AppText.caption.copyWith(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ),
@@ -438,12 +487,20 @@ class _DeadlineRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(deadline.title, style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    deadline.title,
+                    style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   Text(deadline.subtitle, style: AppText.caption),
                 ],
               ),
             ),
-            Text(days == 0 ? 'Today' : (days == 1 ? 'Tomorrow' : 'In $days days'), style: AppText.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
+            Text(
+              days == 0 ? 'Today' : (days == 1 ? 'Tomorrow' : 'In $days days'),
+              style: AppText.caption.copyWith(color: color, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),
@@ -479,15 +536,7 @@ class _RecentActivity extends ConsumerWidget {
         const SectionHeader(title: 'Recent activity'),
         AppCard(
           child: Timeline(
-            entries: [
-              for (final a in feed.take(5))
-                TimelineEntry(
-                  title: a.title,
-                  subtitle: a.detail,
-                  time: Fmt.timeAgo(a.at),
-                  color: a.kind.color,
-                ),
-            ],
+            entries: [for (final a in feed.take(5)) TimelineEntry(title: a.title, subtitle: a.detail, time: Fmt.timeAgo(a.at), color: a.kind.color)],
           ),
         ),
       ],

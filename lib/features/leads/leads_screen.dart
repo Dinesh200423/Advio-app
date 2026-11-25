@@ -9,6 +9,8 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/lead.dart';
 import '../team/team_providers.dart';
+import '../../data/models/modules.dart';
+import '../team/module_access.dart';
 import 'lead_providers.dart';
 import 'widgets/lead_tile.dart';
 
@@ -48,13 +50,14 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
           l.email.toLowerCase().contains(q) ||
           l.location.toLowerCase().contains(q) ||
           l.phone.replaceAll(' ', '').contains(q.replaceAll(' ', ''));
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(leadsProvider);
+    // With the Leads module off, a person only sees the leads assigned to them and cannot add or change any.
+    final canEdit = ref.watch(canUseProvider(AppModule.leads));
     final due = ref.watch(dueFollowUpsProvider);
     final dueIds = {for (final d in due) d.lead.id};
     final leads = _apply(all, dueIds);
@@ -71,13 +74,14 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
       large: true,
       onRefresh: () => pullToRefresh(context),
       actions: [
-        TextButton(onPressed: () => context.push(Routes.leadQuickAdd), child: const Text('Quick add')),
-        IconButton.filled(
-          tooltip: 'Add lead',
-          onPressed: () => context.push(Routes.leadNew),
-          icon: const Icon(Icons.add_rounded),
-          style: IconButton.styleFrom(backgroundColor: AppColors.primary, minimumSize: const Size(48, 48)),
-        ),
+        if (canEdit) TextButton(onPressed: () => context.push(Routes.leadQuickAdd), child: const Text('Quick add')),
+        if (canEdit)
+          IconButton.filled(
+            tooltip: 'Add lead',
+            onPressed: () => context.push(Routes.leadNew),
+            icon: const Icon(Icons.add_rounded),
+            style: IconButton.styleFrom(backgroundColor: AppColors.primary, minimumSize: const Size(48, 48)),
+          ),
       ],
       children: [
         MetricGrid(
@@ -107,9 +111,25 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: FilterDropdown<ServiceInterest>(hint: 'Any service', value: _service, items: ServiceInterest.values, labelOf: (s) => s.shortLabel, onChanged: (v) => setState(() => _service = v))),
+            Expanded(
+              child: FilterDropdown<ServiceInterest>(
+                hint: 'Any service',
+                value: _service,
+                items: ServiceInterest.values,
+                labelOf: (s) => s.shortLabel,
+                onChanged: (v) => setState(() => _service = v),
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: FilterDropdown<LeadSource>(hint: 'Any source', value: _source, items: LeadSource.values, labelOf: (s) => s.label, onChanged: (v) => setState(() => _source = v))),
+            Expanded(
+              child: FilterDropdown<LeadSource>(
+                hint: 'Any source',
+                value: _source,
+                items: LeadSource.values,
+                labelOf: (s) => s.label,
+                onChanged: (v) => setState(() => _source = v),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -140,16 +160,16 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
             icon: filtering ? Icons.search_off_rounded : Icons.person_search_rounded,
             title: filtering ? 'No leads match' : 'No leads yet',
             message: filtering ? 'Try a different search or clear the filters.' : 'Add your first lead to start tracking your pipeline.',
-            actionLabel: filtering ? 'Clear filters' : 'Add lead',
+            actionLabel: filtering ? 'Clear filters' : (canEdit ? 'Add lead' : null),
             onAction: filtering
                 ? () => setState(() {
-                      _query = '';
-                      _status = null;
-                      _source = null;
-                      _service = null;
-                      _owner = null;
-                      _dueOnly = false;
-                    })
+                    _query = '';
+                    _status = null;
+                    _source = null;
+                    _service = null;
+                    _owner = null;
+                    _dueOnly = false;
+                  })
                 : () => context.push(Routes.leadNew),
           )
         else

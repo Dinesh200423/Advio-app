@@ -17,6 +17,8 @@ import '../../features/automation/automation_screen.dart';
 import '../../features/expenses/expense_routes.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/settings/settings_routes.dart';
+import '../../features/team/module_access.dart';
+import '../../features/team/team_providers.dart';
 import '../../features/team/team_routes.dart';
 import '../../features/support/support_routes.dart';
 import '../../features/finance/finance_screen.dart';
@@ -34,21 +36,23 @@ import 'transitions.dart';
 const _publicPaths = {Routes.splash, Routes.onboarding, Routes.login, Routes.signup};
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // Bridge Riverpod auth state to GoRouter's refreshListenable.
-  final authListenable = ValueNotifier<AuthState>(ref.read(authProvider));
-  ref.listen(authProvider, (_, next) => authListenable.value = next);
-  ref.onDispose(authListenable.dispose);
+  // Re-run the redirect when signing in or out, or when this person's access changes.
+  final recheck = ValueNotifier<int>(0);
+  ref.listen(authProvider, (_, _) => recheck.value++);
+  ref.listen(currentMemberProvider, (_, _) => recheck.value++);
+  ref.onDispose(recheck.dispose);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: Routes.splash,
-    refreshListenable: authListenable,
+    refreshListenable: recheck,
     redirect: (context, state) {
       final auth = ref.read(authProvider);
       final loc = state.matchedLocation;
       if (BackendConfig.isConfigured && loc == Routes.signup) return Routes.login;
       if (!auth.loggedIn && !_publicPaths.contains(loc)) return Routes.login;
       if (auth.loggedIn && (loc == Routes.login || loc == Routes.signup || loc == Routes.onboarding)) return Routes.home;
+      if (auth.loggedIn && !pathAllowed(loc, canUse: (m) => ref.read(canUseProvider(m)), isFounder: ref.read(isFounderProvider))) return Routes.home;
       return null;
     },
     errorBuilder: (context, state) => Scaffold(

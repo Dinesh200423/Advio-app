@@ -6,7 +6,9 @@ import '../../app/router/routes.dart';
 import '../../app/theme/app_text.dart';
 import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
+import '../../data/models/modules.dart';
 import '../checklists/checklist_providers.dart';
+import '../team/team_providers.dart';
 import '../settings/settings_providers.dart';
 import '../support/support_providers.dart';
 import '../tasks/task_providers.dart';
@@ -21,18 +23,54 @@ class MoreScreen extends ConsumerWidget {
     final pendingTasks = ref.watch(pendingTasksProvider).length;
     final waitingOnClient = ref.watch(checklistsProvider).fold<int>(0, (s, c) => s + c.waitingCount);
 
-    final items = <({IconData icon, Color color, String label, String route, String? badge})>[
-      (icon: Icons.business_rounded, color: AppColors.primary, label: 'Clients', route: Routes.clients, badge: null),
-      (icon: Icons.groups_rounded, color: AppColors.primary, label: 'Team', route: Routes.team, badge: null),
-      (icon: Icons.task_alt_rounded, color: AppColors.secondary, label: 'Tasks', route: Routes.tasks, badge: pendingTasks > 0 ? '$pendingTasks' : null),
-      (icon: Icons.fact_check_rounded, color: AppColors.primary, label: 'Delivery checklists', route: Routes.checklists, badge: waitingOnClient > 0 ? '$waitingOnClient' : null),
-      (icon: Icons.request_quote_rounded, color: AppColors.warning, label: 'Quotations', route: Routes.quotations, badge: null),
-      (icon: Icons.shopping_bag_rounded, color: AppColors.danger, label: 'Expenses', route: Routes.expenses, badge: null),
-      (icon: Icons.support_agent_rounded, color: AppColors.success, label: 'Support & Maintenance', route: Routes.support, badge: openTickets > 0 ? '$openTickets' : null),
-      (icon: Icons.bolt_rounded, color: AppColors.secondary, label: 'Automation', route: Routes.automation, badge: null),
-      (icon: Icons.insights_rounded, color: AppColors.primary, label: 'Reports', route: Routes.reports, badge: null),
-      (icon: Icons.settings_rounded, color: AppColors.muted, label: 'Settings', route: Routes.settings, badge: null),
-    ];
+    final me = ref.watch(currentMemberProvider);
+    final items = <({IconData icon, Color color, String label, String route, String? badge, AppModule? module})>[
+      (icon: Icons.business_rounded, color: AppColors.primary, label: 'Clients', route: Routes.clients, badge: null, module: AppModule.clients),
+      (icon: Icons.groups_rounded, color: AppColors.primary, label: 'Team', route: Routes.team, badge: null, module: null),
+      (
+        icon: Icons.task_alt_rounded,
+        color: AppColors.secondary,
+        label: 'Tasks',
+        route: Routes.tasks,
+        badge: pendingTasks > 0 ? '$pendingTasks' : null,
+        module: AppModule.tasks,
+      ),
+      (
+        icon: Icons.fact_check_rounded,
+        color: AppColors.primary,
+        label: 'Delivery checklists',
+        route: Routes.checklists,
+        badge: waitingOnClient > 0 ? '$waitingOnClient' : null,
+        module: AppModule.checklists,
+      ),
+      (
+        icon: Icons.request_quote_rounded,
+        color: AppColors.warning,
+        label: 'Quotations',
+        route: Routes.quotations,
+        badge: null,
+        module: AppModule.quotations,
+      ),
+      (icon: Icons.shopping_bag_rounded, color: AppColors.danger, label: 'Expenses', route: Routes.expenses, badge: null, module: AppModule.expenses),
+      (
+        icon: Icons.support_agent_rounded,
+        color: AppColors.success,
+        label: 'Support & Maintenance',
+        route: Routes.support,
+        badge: openTickets > 0 ? '$openTickets' : null,
+        module: AppModule.support,
+      ),
+      (
+        icon: Icons.bolt_rounded,
+        color: AppColors.secondary,
+        label: 'Automation',
+        route: Routes.automation,
+        badge: null,
+        module: AppModule.automation,
+      ),
+      (icon: Icons.insights_rounded, color: AppColors.primary, label: 'Reports', route: Routes.reports, badge: null, module: AppModule.reports),
+      (icon: Icons.settings_rounded, color: AppColors.muted, label: 'Settings', route: Routes.settings, badge: null, module: null),
+    ].where((i) => i.module == null || me == null || me.canUse(i.module!)).toList();
 
     return PageScaffold(
       title: 'More',
@@ -77,7 +115,11 @@ class MoreScreen extends ConsumerWidget {
                         children: [
                           Row(
                             children: [
-                              Container(width: 18, height: 3, decoration: BoxDecoration(color: i.color, borderRadius: BorderRadius.circular(3))),
+                              Container(
+                                width: 18,
+                                height: 3,
+                                decoration: BoxDecoration(color: i.color, borderRadius: BorderRadius.circular(3)),
+                              ),
                               const Spacer(),
                               if (i.badge != null) StatusBadge(label: i.badge!, color: i.color, dot: false),
                             ],

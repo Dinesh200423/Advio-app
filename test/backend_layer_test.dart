@@ -61,6 +61,14 @@ Map<String, ({Set<String> columns, Set<String> required})> parseSchema(String sq
     }
     tables[m.group(1)!] = (columns: columns, required: required);
   }
+  // Columns added by later migrations: `alter table public.x add column if not exists name type ...;`
+  for (final m in RegExp(r'alter table public\.(\w+) add column(?: if not exists)? (\w+)([^;]*);').allMatches(sql)) {
+    final table = tables[m.group(1)!];
+    if (table == null) continue;
+    table.columns.add(m.group(2)!);
+    final rest = m.group(3)!.toLowerCase();
+    if (rest.contains('not null') && !rest.contains('default')) table.required.add(m.group(2)!);
+  }
   return tables;
 }
 
@@ -103,7 +111,9 @@ class FakeGateway implements RowGateway {
 
 void main() {
   group('rows match the database schema', () {
-    final schema = parseSchema(File('supabase/migrations/20261124000000_schema.sql').readAsStringSync());
+    // Every migration in order, so columns added later (alter table ... add column) count too.
+    final migrations = Directory('supabase/migrations').listSync().whereType<File>().toList()..sort((a, b) => a.path.compareTo(b.path));
+    final schema = parseSchema(migrations.map((f) => f.readAsStringSync()).join('\n'));
 
     test('the schema file was parsed (sanity check)', () {
       expect(schema.keys, containsAll(['team_members', 'leads', 'tasks', 'invoices', 'project_checklists']));

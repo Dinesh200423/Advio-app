@@ -7,7 +7,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/update/app_update.dart';
 import '../../core/update/update_prompt.dart';
+import '../../data/models/modules.dart';
 import '../../features/auth/session_loader.dart';
+import '../../features/team/team_providers.dart';
 import '../router/routes.dart';
 import '../theme/app_text.dart';
 
@@ -49,7 +51,23 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
-    final index = Routes.tabIndexFor(path);
+
+    // Only the tabs this person has access to. Home and More are always there.
+    final canUse = ref.watch(currentMemberProvider);
+    bool can(AppModule m) => canUse == null || canUse.canUse(m);
+    final tabs = [
+      for (var i = 0; i < _tabs.length; i++)
+        if (switch (_tabs[i].route) {
+          Routes.leads => can(AppModule.leads),
+          Routes.projects => can(AppModule.projects),
+          Routes.finance => can(AppModule.invoices) || can(AppModule.quotations) || can(AppModule.expenses),
+          _ => true,
+        })
+          (original: i, tab: _tabs[i]),
+    ];
+    final owner = Routes.tabIndexFor(path);
+    final found = tabs.indexWhere((t) => t.original == owner);
+    final index = found >= 0 ? found : tabs.length - 1;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final showFab = Routes.tabRoots.contains(path) && !keyboardOpen;
 
@@ -74,15 +92,15 @@ class _AppShellState extends ConsumerState<AppShell> {
               child: NavigationBar(
                 selectedIndex: index,
                 onDestinationSelected: (i) {
-                  if (i == index && path == _tabs[i].route) return;
-                  context.go(_tabs[i].route);
+                  if (i == index && path == tabs[i].tab.route) return;
+                  context.go(tabs[i].tab.route);
                 },
                 destinations: [
-                  for (final t in _tabs)
+                  for (final t in tabs)
                     NavigationDestination(
-                      icon: Icon(t.icon),
-                      selectedIcon: Icon(t.selected, color: AppColors.primary),
-                      label: t.label,
+                      icon: Icon(t.tab.icon),
+                      selectedIcon: Icon(t.tab.selected, color: AppColors.primary),
+                      label: t.tab.label,
                     ),
                 ],
               ),
@@ -97,12 +115,13 @@ Future<void> showQuickActions(BuildContext context) {
     context,
     title: 'Quick actions',
     builder: (ctx) {
+      final me = ProviderScope.containerOf(context).read(currentMemberProvider);
       final actions = [
-        (icon: Icons.person_add_alt_1_rounded, label: 'Add Lead', hint: 'Capture a new prospect', color: AppColors.primary, route: Routes.leadNew),
-        (icon: Icons.task_alt_rounded, label: 'Add Task', hint: 'Plan something to do', color: AppColors.secondary, route: Routes.taskNew()),
-        (icon: Icons.create_new_folder_rounded, label: 'Create Project', hint: 'Start a client project', color: AppColors.success, route: Routes.projectNew()),
-        (icon: Icons.receipt_long_rounded, label: 'Create Invoice', hint: 'Bill a client', color: AppColors.warning, route: Routes.invoiceNew()),
-      ];
+        (module: AppModule.leads, icon: Icons.person_add_alt_1_rounded, label: 'Add Lead', hint: 'Capture a new prospect', color: AppColors.primary, route: Routes.leadNew),
+        (module: AppModule.tasks, icon: Icons.task_alt_rounded, label: 'Add Task', hint: 'Plan something to do', color: AppColors.secondary, route: Routes.taskNew()),
+        (module: AppModule.projects, icon: Icons.create_new_folder_rounded, label: 'Create Project', hint: 'Start a client project', color: AppColors.success, route: Routes.projectNew()),
+        (module: AppModule.invoices, icon: Icons.receipt_long_rounded, label: 'Create Invoice', hint: 'Bill a client', color: AppColors.warning, route: Routes.invoiceNew()),
+      ].where((a) => me == null || me.canUse(a.module)).toList();
       return Column(
         children: [
           for (final a in actions)

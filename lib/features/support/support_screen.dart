@@ -14,6 +14,8 @@ import '../../data/models/support.dart';
 import '../clients/client_providers.dart';
 import '../team/widgets/assignee_widgets.dart';
 import 'support_providers.dart';
+import '../team/module_access.dart';
+import '../../data/models/modules.dart';
 
 /// Support dashboard: tickets and maintenance plans.
 class SupportScreen extends ConsumerStatefulWidget {
@@ -36,7 +38,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     return PageScaffold(
       title: 'Support & Maintenance',
       onRefresh: () => pullToRefresh(context),
-      fab: _tab == 0
+      fab: !ref.watch(canUseProvider(AppModule.support))
+          ? null
+          : _tab == 0
           ? FloatingActionButton.extended(
               onPressed: () => context.push(Routes.ticketNew()),
               icon: const Icon(Icons.add_rounded),

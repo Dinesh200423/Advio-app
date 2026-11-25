@@ -12,6 +12,8 @@ import '../../shared/widgets/notes_section.dart';
 import '../clients/client_providers.dart';
 import '../team/widgets/assignee_widgets.dart';
 import 'support_providers.dart';
+import '../team/module_access.dart';
+import '../../data/models/modules.dart';
 
 class TicketDetailScreen extends ConsumerWidget {
   const TicketDetailScreen({super.key, required this.id});
@@ -27,16 +29,17 @@ class TicketDetailScreen extends ConsumerWidget {
     return PageScaffold(
       title: t.number,
       actions: [
-        DetailMenu(
-          onEdit: () => context.push(Routes.ticketEdit(id)),
-          deleteTitle: 'Delete ticket?',
-          deleteMessage: '${t.number} and its history will be permanently removed.',
-          onDelete: () {
-            notifier.remove(id);
-            context.popOr(Routes.support);
-            AppSnack.success(context, 'Ticket deleted');
-          },
-        ),
+        if (ref.watch(canUseProvider(AppModule.support)))
+          DetailMenu(
+            onEdit: () => context.push(Routes.ticketEdit(id)),
+            deleteTitle: 'Delete ticket?',
+            deleteMessage: '${t.number} and its history will be permanently removed.',
+            onDelete: () {
+              notifier.remove(id);
+              context.popOr(Routes.support);
+              AppSnack.success(context, 'Ticket deleted');
+            },
+          ),
       ],
       children: [
         AppCard(
@@ -47,7 +50,10 @@ class TicketDetailScreen extends ConsumerWidget {
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: client == null ? null : () => context.push(Routes.client(client.id)),
-                child: Text(client?.displayName ?? 'Unknown client', style: AppText.label.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                child: Text(
+                  client?.displayName ?? 'Unknown client',
+                  style: AppText.label.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(height: 14),
               Wrap(
@@ -58,20 +64,34 @@ class TicketDetailScreen extends ConsumerWidget {
                   InkWell(
                     borderRadius: BorderRadius.circular(999),
                     onTap: () async {
-                      final s = await pickOption<TicketStatus>(context, title: 'Ticket status', options: TicketStatus.values, labelOf: (s) => s.label, selected: t.status, colorOf: (s) => s.color);
+                      final s = await pickOption<TicketStatus>(
+                        context,
+                        title: 'Ticket status',
+                        options: TicketStatus.values,
+                        labelOf: (s) => s.label,
+                        selected: t.status,
+                        colorOf: (s) => s.color,
+                      );
                       if (s != null) notifier.setStatus(id, s);
                     },
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [t.status.badge, const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted)]),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        t.status.badge,
+                        const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted),
+                      ],
+                    ),
                   ),
                   t.priority.badge,
                 ],
               ),
-              if (t.description.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(t.description, style: AppText.body),
-              ],
+              if (t.description.isNotEmpty) ...[const SizedBox(height: 16), Text(t.description, style: AppText.body)],
               const SizedBox(height: 8),
-              AssigneeRow(label: 'Handled by', memberId: t.assigneeId, onChanged: (id) => notifier.upsert(t.copyWith(assigneeId: id))),
+              AssigneeRow(
+                label: 'Handled by',
+                memberId: t.assigneeId,
+                onChanged: (id) => notifier.upsert(t.copyWith(assigneeId: id)),
+              ),
               const SizedBox(height: 4),
               Text('Opened ${Fmt.dateTime(t.createdAt)}', style: AppText.caption),
             ],
@@ -100,7 +120,9 @@ class TicketDetailScreen extends ConsumerWidget {
         AppCard(
           child: t.notes.isEmpty
               ? const Text('No history yet.')
-              : Timeline(entries: [for (final n in t.notes) TimelineEntry(title: n.text, time: Fmt.dateTime(n.at), color: AppColors.primary)]),
+              : Timeline(
+                  entries: [for (final n in t.notes) TimelineEntry(title: n.text, time: Fmt.dateTime(n.at), color: AppColors.primary)],
+                ),
         ),
         const SizedBox(height: 20),
         // New notes are appended to the history above, so the list inside is left empty.

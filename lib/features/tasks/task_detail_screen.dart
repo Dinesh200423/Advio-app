@@ -10,6 +10,8 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/enums.dart';
 import '../projects/project_providers.dart';
 import '../team/team_providers.dart';
+import '../../data/models/modules.dart';
+import '../team/module_access.dart';
 import '../team/widgets/assignee_widgets.dart';
 import 'task_providers.dart';
 
@@ -28,16 +30,17 @@ class TaskDetailScreen extends ConsumerWidget {
     return PageScaffold(
       title: 'Task details',
       actions: [
-        DetailMenu(
-          onEdit: () => context.push(Routes.taskEdit(id)),
-          deleteTitle: 'Delete task?',
-          deleteMessage: '"${task.title}" will be permanently removed.',
-          onDelete: () {
-            notifier.remove(id);
-            context.popOr(Routes.tasks);
-            AppSnack.success(context, 'Task deleted');
-          },
-        ),
+        if (ref.watch(canUseProvider(AppModule.tasks)))
+          DetailMenu(
+            onEdit: () => context.push(Routes.taskEdit(id)),
+            deleteTitle: 'Delete task?',
+            deleteMessage: '"${task.title}" will be permanently removed.',
+            onDelete: () {
+              notifier.remove(id);
+              context.popOr(Routes.tasks);
+              AppSnack.success(context, 'Task deleted');
+            },
+          ),
       ],
       children: [
         AppCard(
@@ -53,27 +56,47 @@ class TaskDetailScreen extends ConsumerWidget {
                   InkWell(
                     borderRadius: BorderRadius.circular(999),
                     onTap: () async {
-                      final s = await pickOption<TaskStatus>(context, title: 'Task status', options: TaskStatus.values, labelOf: (s) => s.label, selected: task.status, colorOf: (s) => s.color);
+                      final s = await pickOption<TaskStatus>(
+                        context,
+                        title: 'Task status',
+                        options: TaskStatus.values,
+                        labelOf: (s) => s.label,
+                        selected: task.status,
+                        colorOf: (s) => s.color,
+                      );
                       if (s != null) notifier.setStatus(id, s);
                     },
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [task.status.badge, const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted)]),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        task.status.badge,
+                        const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted),
+                      ],
+                    ),
                   ),
                   task.priority.badge,
                   if (overdue) const StatusBadge(label: 'Overdue', color: AppColors.danger, icon: Icons.warning_amber_rounded),
                 ],
               ),
-              if (task.description.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(task.description, style: AppText.body),
-              ],
+              if (task.description.isNotEmpty) ...[const SizedBox(height: 16), Text(task.description, style: AppText.body)],
             ],
           ),
         ),
         const SizedBox(height: 12),
         InfoCard(
           children: [
-            InfoRow(icon: Icons.event_rounded, label: 'Due date', value: '${Fmt.date(task.dueDate)} · ${Fmt.relativeDay(task.dueDate)}', valueColor: overdue ? AppColors.danger : null),
-            InfoRow(icon: Icons.folder_outlined, label: 'Project', value: project?.name ?? '', onTap: project == null ? null : () => context.push(Routes.project(project.id))),
+            InfoRow(
+              icon: Icons.event_rounded,
+              label: 'Due date',
+              value: '${Fmt.date(task.dueDate)} · ${Fmt.relativeDay(task.dueDate)}',
+              valueColor: overdue ? AppColors.danger : null,
+            ),
+            InfoRow(
+              icon: Icons.folder_outlined,
+              label: 'Project',
+              value: project?.name ?? '',
+              onTap: project == null ? null : () => context.push(Routes.project(project.id)),
+            ),
             InfoRow(
               label: 'Assigned to',
               value: ref.watch(memberNameProvider(task.assigneeId)),

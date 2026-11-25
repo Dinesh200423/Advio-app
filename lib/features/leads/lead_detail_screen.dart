@@ -16,6 +16,8 @@ import '../../shared/widgets/contact_actions.dart';
 import '../../shared/widgets/notes_section.dart';
 import '../clients/client_providers.dart';
 import '../team/team_providers.dart';
+import '../../data/models/modules.dart';
+import '../team/module_access.dart';
 import '../team/widgets/assignee_widgets.dart';
 import 'lead_providers.dart';
 
@@ -28,20 +30,22 @@ class LeadDetailScreen extends ConsumerWidget {
     final lead = ref.watch(leadProvider(id));
     if (lead == null) return const MissingRecord(what: 'Lead', fallback: Routes.leads);
     final notifier = ref.read(leadsProvider.notifier);
+    final canEdit = ref.watch(canUseProvider(AppModule.leads));
 
     return PageScaffold(
       title: 'Lead details',
       actions: [
-        DetailMenu(
-          onEdit: () => context.push(Routes.leadEdit(id)),
-          deleteTitle: 'Delete lead?',
-          deleteMessage: '${lead.name} and all their follow-ups and notes will be removed.',
-          onDelete: () {
-            notifier.remove(id);
-            context.popOr(Routes.leads);
-            AppSnack.success(context, 'Lead deleted');
-          },
-        ),
+        if (canEdit)
+          DetailMenu(
+            onEdit: () => context.push(Routes.leadEdit(id)),
+            deleteTitle: 'Delete lead?',
+            deleteMessage: '${lead.name} and all their follow-ups and notes will be removed.',
+            onDelete: () {
+              notifier.remove(id);
+              context.popOr(Routes.leads);
+              AppSnack.success(context, 'Lead deleted');
+            },
+          ),
       ],
       children: [
         AppCard(
@@ -57,7 +61,8 @@ class LeadDetailScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(lead.name, style: AppText.sectionTitle),
-                        if (lead.company.isNotEmpty || lead.location.isNotEmpty) Text(lead.company.isNotEmpty ? lead.company : lead.location, style: AppText.label),
+                        if (lead.company.isNotEmpty || lead.location.isNotEmpty)
+                          Text(lead.company.isNotEmpty ? lead.company : lead.location, style: AppText.label),
                       ],
                     ),
                   ),
@@ -82,7 +87,13 @@ class LeadDetailScreen extends ConsumerWidget {
                         if (context.mounted) AppSnack.success(context, 'Status updated to ${s.label}');
                       }
                     },
-                    child: Row(children: [lead.status.badge, const SizedBox(width: 2), const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted)]),
+                    child: Row(
+                      children: [
+                        lead.status.badge,
+                        const SizedBox(width: 2),
+                        const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.muted),
+                      ],
+                    ),
                   ),
                   const Spacer(),
                   Text(ref.money(lead.estimatedValue), style: AppText.cardTitle),
@@ -94,8 +105,7 @@ class LeadDetailScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (lead.status != LeadStatus.lost)
-          _ConvertBanner(lead: lead),
+        if (canEdit && lead.status != LeadStatus.lost) _ConvertBanner(lead: lead),
         const SizedBox(height: 12),
         TabbedSection(
           tabs: {
@@ -244,7 +254,12 @@ class _FollowUps extends ConsumerWidget {
         AppButton.secondary(label: 'Schedule follow-up', icon: Icons.event_rounded, onPressed: () => _schedule(context, ref)),
         const SizedBox(height: 20),
         if (items.isEmpty)
-          const EmptyState(icon: Icons.event_busy_rounded, title: 'No follow-ups scheduled', message: 'Schedule one so no lead goes cold.', compact: true)
+          const EmptyState(
+            icon: Icons.event_busy_rounded,
+            title: 'No follow-ups scheduled',
+            message: 'Schedule one so no lead goes cold.',
+            compact: true,
+          )
         else
           Timeline(
             entries: [
@@ -254,11 +269,7 @@ class _FollowUps extends ConsumerWidget {
                   subtitle: Fmt.dateTime(f.at),
                   time: f.done ? 'Completed' : Fmt.relativeDay(f.at),
                   color: f.done ? AppColors.success : (daysUntil(f.at) < 0 ? AppColors.danger : AppColors.primary),
-                  trailing: Checkbox(
-                    value: f.done,
-                    shape: const CircleBorder(),
-                    onChanged: (_) => notifier.toggleFollowUp(lead.id, f.id),
-                  ),
+                  trailing: Checkbox(value: f.done, shape: const CircleBorder(), onChanged: (_) => notifier.toggleFollowUp(lead.id, f.id)),
                 ),
             ],
           ),
@@ -283,9 +294,22 @@ class _FollowUps extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const FieldLabel('Type'),
-              FilterChipRow<FollowUpType>(options: FollowUpType.values, selected: type, allLabel: null, labelOf: (t) => t.label, onSelected: (t) => setState(() => type = t ?? type)),
+              FilterChipRow<FollowUpType>(
+                options: FollowUpType.values,
+                selected: type,
+                allLabel: null,
+                labelOf: (t) => t.label,
+                onSelected: (t) => setState(() => type = t ?? type),
+              ),
               const SizedBox(height: 20),
-              AppDateField(label: 'Date & time', value: when, withTime: true, required: true, firstDate: DateTime.now().subtract(const Duration(days: 1)), onChanged: (d) => setState(() => when = d)),
+              AppDateField(
+                label: 'Date & time',
+                value: when,
+                withTime: true,
+                required: true,
+                firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                onChanged: (d) => setState(() => when = d),
+              ),
               const SizedBox(height: 20),
               AppTextField(controller: note, label: 'Note', hint: 'What will you discuss?', maxLines: 2),
               const SizedBox(height: 24),
@@ -316,10 +340,7 @@ class _History extends StatelessWidget {
       return const EmptyState(icon: Icons.history_rounded, title: 'No activity yet', compact: true);
     }
     return Timeline(
-      entries: [
-        for (final a in lead.history)
-          TimelineEntry(title: a.title, subtitle: a.detail, time: Fmt.dateTime(a.at), color: a.kind.color),
-      ],
+      entries: [for (final a in lead.history) TimelineEntry(title: a.title, subtitle: a.detail, time: Fmt.dateTime(a.at), color: a.kind.color)],
     );
   }
 }
