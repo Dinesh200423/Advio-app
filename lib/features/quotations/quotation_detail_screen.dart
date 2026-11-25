@@ -125,7 +125,7 @@ class _Actions extends ConsumerWidget {
     final client = ref.watch(clientProvider(quotation.clientId));
     final status = quotation.displayStatus;
 
-    final preview = AppButton.secondary(label: 'Preview', onPressed: () => context.push(Routes.quotationPreview(quotation.id)));
+    final preview = AppButton.secondary(label: 'Preview & PDF', onPressed: () => context.push(Routes.quotationPreview(quotation.id)));
 
     switch (status) {
       case QuotationStatus.draft:

@@ -142,7 +142,7 @@ class _Actions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = invoice.displayStatus;
-    final preview = AppButton.secondary(label: 'Preview', onPressed: () => context.push(Routes.invoicePreview(invoice.id)));
+    final preview = AppButton.secondary(label: 'Preview & PDF', onPressed: () => context.push(Routes.invoicePreview(invoice.id)));
 
     if (status == InvoiceStatus.draft) {
       return Row(

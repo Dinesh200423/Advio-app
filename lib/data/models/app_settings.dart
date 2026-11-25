@@ -1,7 +1,7 @@
 class AppSettings {
   const AppSettings({
     this.name = 'Dinesh',
-    this.email = 'founder@example.com',
+    this.email = 'advio.md@gmail.com',
     this.phone = '+91 89391 27720',
     this.headline = 'Founder, ADVIO',
     this.businessName = 'ADVIO',

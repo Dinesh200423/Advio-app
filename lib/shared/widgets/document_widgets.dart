@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_text.dart';
+import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/observability/app_log.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/client.dart';
 import '../../data/models/common.dart';
 import '../../features/settings/settings_providers.dart';
+import '../pdf/document_pdf.dart';
 
 /// Subtotal / discount / tax / total block.
 class TotalsSummary extends ConsumerWidget {
@@ -235,4 +238,35 @@ class DocumentPreview extends ConsumerWidget {
   }
 
   static String _qty(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+}
+
+/// Builds the PDF for [data] and hands it over to be saved or shared.
+class DownloadPdfButton extends ConsumerStatefulWidget {
+  const DownloadPdfButton({super.key, required this.data});
+  final DocumentData data;
+
+  @override
+  ConsumerState<DownloadPdfButton> createState() => _DownloadPdfButtonState();
+}
+
+class _DownloadPdfButtonState extends ConsumerState<DownloadPdfButton> {
+  bool _working = false;
+
+  Future<void> _download() async {
+    setState(() => _working = true);
+    try {
+      final bytes = await buildDocumentPdf(widget.data);
+      await ref.read(pdfSharerProvider)(bytes, widget.data.fileName);
+    } catch (error) {
+      AppLog.warning('Could not create the PDF', error: error);
+      if (mounted) AppSnack.error(context, 'Could not create the PDF. Please try again.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppButton.secondary(label: 'Download PDF', icon: Icons.download_rounded, onPressed: _working ? null : _download, loading: _working);
+  }
 }

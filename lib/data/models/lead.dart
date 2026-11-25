@@ -77,6 +77,22 @@ class Lead {
   /// "Name · Company", or just the name when they are the same or there is no company.
   String get titleLine => company.isEmpty || company == name ? name : '$name · $company';
 
+  /// The enquiry in one piece: what they asked for, the service, the budget and where it came from.
+  /// Copied to the client and the project when the lead is converted, so nothing they said is lost.
+  String get requirementsSummary => [
+        if (interest.trim().isNotEmpty) interest.trim(),
+        [
+          'Service: ${service.label}',
+          if (budget != null) 'Budget range: ${budget!.label}',
+          'Source: ${source.label}',
+        ].join('\n'),
+      ].join('\n\n');
+
+  /// Ids used when this lead is converted. Fixed per lead, so converting again (after a failed save, or a double tap)
+  /// finds what was already made instead of adding a second client or project.
+  String get convertedClientId => 'client_from_$id';
+  String get convertedProjectId => 'project_from_$id';
+
   FollowUp? get nextFollowUp {
     final pending = followUps.where((f) => !f.done).toList()..sort((a, b) => a.at.compareTo(b.at));
     return pending.isEmpty ? null : pending.first;

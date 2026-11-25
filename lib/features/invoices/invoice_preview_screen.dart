@@ -5,7 +5,9 @@ import '../../app/router/routes.dart';
 import '../../core/components/components.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/enums.dart';
+import '../../shared/pdf/document_pdf.dart';
 import '../../shared/widgets/document_widgets.dart';
+import '../settings/settings_providers.dart';
 import '../clients/client_providers.dart';
 import 'invoice_providers.dart';
 
@@ -40,10 +42,8 @@ class InvoicePreviewScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        AppButton.secondary(
-          label: 'Download PDF',
-          icon: Icons.download_rounded,
-          onPressed: () => AppSnack.info(context, 'PDF export is not part of the prototype yet'),
+        DownloadPdfButton(
+          data: DocumentData.invoice(invoice, client: ref.watch(clientProvider(invoice.clientId)), settings: ref.watch(settingsProvider)),
         ),
       ],
     );

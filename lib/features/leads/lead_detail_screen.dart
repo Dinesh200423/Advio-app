@@ -7,7 +7,6 @@ import '../../app/theme/app_text.dart';
 import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../data/models/client.dart';
 import '../../data/models/common.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/lead.dart';
@@ -15,6 +14,7 @@ import '../../shared/contact_links.dart';
 import '../../shared/widgets/contact_actions.dart';
 import '../../shared/widgets/notes_section.dart';
 import '../clients/client_providers.dart';
+import '../projects/project_providers.dart';
 import '../team/team_providers.dart';
 import '../../data/models/modules.dart';
 import '../team/module_access.dart';
@@ -120,52 +120,85 @@ class LeadDetailScreen extends ConsumerWidget {
   }
 }
 
-class _ConvertBanner extends ConsumerWidget {
+class _ConvertBanner extends ConsumerStatefulWidget {
   const _ConvertBanner({required this.lead});
   final Lead lead;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ConvertBanner> createState() => _ConvertBannerState();
+}
+
+class _ConvertBannerState extends ConsumerState<_ConvertBanner> {
+  bool _converting = false;
+
+  Future<void> _convert() async {
+    final lead = widget.lead;
+    final ok = await confirmDialog(
+      context,
+      title: 'Convert to client?',
+      message: '${lead.displayCompany} will be added to your clients, with a planned project holding their requirements, and this lead will be marked as Won.',
+      confirmLabel: 'Convert',
+      icon: Icons.swap_horiz_rounded,
+    );
+    if (!ok || !mounted) return;
+
+    setState(() => _converting = true);
+    final result = await ref.read(leadsProvider.notifier).convertToClient(lead.id);
+    if (!mounted) return;
+    setState(() => _converting = false);
+
+    if (result == null) {
+      AppSnack.error(context, 'The client could not be saved, so nothing was converted. Check your connection and try again.');
+      return;
+    }
+    AppSnack.success(context, result.projectId == null ? '${lead.displayCompany} added to clients (the project could not be created)' : '${lead.displayCompany} is now a client');
+    context.push(Routes.client(result.clientId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lead = widget.lead;
+    final client = ref.watch(clientProvider(lead.convertedClientId));
+
+    // Already converted: say so, and link to what was made.
+    if (client != null) {
+      final project = ref.watch(projectProvider(lead.convertedProjectId));
+      return AppCard(
+        shadow: false,
+        color: AppColors.tint(AppColors.success, 0.08),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Converted to client', style: AppText.bodyStrong),
+            const SizedBox(height: 2),
+            Text(client.displayName, style: AppText.caption),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: AppButton.secondary(label: 'View client', compact: true, onPressed: () => context.push(Routes.client(client.id)))),
+                if (project != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(child: AppButton.secondary(label: 'View project', compact: true, onPressed: () => context.push(Routes.project(project.id)))),
+                ],
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return AppCard(
       shadow: false,
       color: AppColors.tint(AppColors.secondary, 0.06),
       child: Row(
         children: [
-          const Expanded(child: Text('Ready to work together? Convert this lead into a client.')),
-          const SizedBox(width: 8),
-          AppButton(
-            label: 'Convert',
-            expand: false,
-            compact: true,
-            onPressed: () async {
-              final ok = await confirmDialog(
-                context,
-                title: 'Convert to client?',
-                message: '${lead.displayCompany} will be added to your clients and this lead marked as Won.',
-                confirmLabel: 'Convert',
-                icon: Icons.swap_horiz_rounded,
-              );
-              if (!ok || !context.mounted) return;
-              // Same id every time: converting again after a failed save, or a double tap, finds this client
-              // instead of adding a second one. The client is saved first, so a failure never leaves a lead marked Won with no client.
-              final clientId = 'client_from_${lead.id}';
-              final client = Client(
-                id: clientId,
-                name: lead.name,
-                company: lead.company,
-                website: lead.website,
-                address: lead.location,
-                email: lead.email,
-                phone: lead.phone,
-                createdAt: DateTime.now(),
-                notes: lead.notes,
-              );
-              if (ref.read(clientsProvider.notifier).byId(clientId) == null) ref.read(clientsProvider.notifier).create(client);
-              ref.read(leadsProvider.notifier).changeStatus(lead.id, LeadStatus.won);
-              AppSnack.success(context, '${lead.displayCompany} added to clients');
-              context.push(Routes.client(client.id));
-            },
+          Expanded(
+            child: Text(lead.status == LeadStatus.won
+                ? 'Marked Won, but no client has been created yet.'
+                : 'Ready to work together? Convert this lead into a client.'),
           ),
+          const SizedBox(width: 8),
+          AppButton(label: 'Convert', expand: false, compact: true, loading: _converting, onPressed: _converting ? null : _convert),
         ],
       ),
     );

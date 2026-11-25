@@ -253,20 +253,28 @@ void main() {
       expect(followUps.single.assigneeId, 'tm4');
     });
 
-    testWidgets('converting a lead twice (e.g. after a failed save) gives one client, not two', (tester) async {
+    testWidgets('a converted lead cannot be converted again: one client, and the page says so', (tester) async {
       final container = await pumpApp(tester, size: const Size(390, 2400));
       final before = container.read(clientsProvider).length;
 
-      for (var i = 0; i < 2; i++) {
-        await goTo(tester, '/leads');
-        await pushTo(tester, '/leads/l7');
-        await tester.tap(find.text('Convert'));
-        await tester.pumpAndSettle(const Duration(milliseconds: 100));
-        await tester.tap(find.widgetWithText(FilledButton, 'Convert').last);
-        await tester.pumpAndSettle(const Duration(milliseconds: 100));
-      }
+      await goTo(tester, '/leads');
+      await pushTo(tester, '/leads/l7');
+      await tester.tap(find.text('Convert'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.tap(find.widgetWithText(FilledButton, 'Convert').last);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+      // Back on the lead: there is nothing left to convert.
+      await goTo(tester, '/leads');
+      await pushTo(tester, '/leads/l7');
+      expect(find.text('Converted to client'), findsOneWidget);
+      expect(find.text('Convert'), findsNothing);
+
       expect(container.read(clientsProvider).length, before + 1);
       expect(container.read(clientsProvider.notifier).byId('client_from_l7'), isNotNull);
+      // Converting again by any other route (a repeated tap, a retry) still finds the same client.
+      await container.read(leadsProvider.notifier).convertToClient('l7');
+      expect(container.read(clientsProvider).length, before + 1);
     });
   });
 

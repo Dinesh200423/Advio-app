@@ -8,6 +8,7 @@ import '../../../core/components/components.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/lead.dart';
+import '../../clients/client_providers.dart';
 import '../../team/widgets/assignee_widgets.dart';
 
 class LeadTile extends ConsumerWidget {
@@ -31,7 +32,8 @@ class LeadTile extends ConsumerWidget {
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          lead.status.badge,
+          // A lead that has become a client says so, rather than the generic "Won".
+          if (ref.watch(clientProvider(lead.convertedClientId)) != null) const StatusBadge(label: 'Converted', color: AppColors.success) else lead.status.badge,
           AssigneeAvatar(memberId: lead.ownerId, size: 22),
           Text('${lead.service.shortLabel}  ·  ${lead.source.label}', style: AppText.caption),
         ],
