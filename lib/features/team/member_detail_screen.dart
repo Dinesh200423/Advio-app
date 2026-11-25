@@ -7,6 +7,7 @@ import '../../app/theme/app_text.dart';
 import '../../core/components/components.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../data/backend/backend_config.dart';
 import '../leads/lead_providers.dart';
 import '../leads/widgets/lead_tile.dart';
 import '../projects/project_providers.dart';
@@ -14,7 +15,9 @@ import '../projects/widgets/project_tile.dart';
 import '../support/support_providers.dart';
 import '../tasks/task_providers.dart';
 import '../tasks/widgets/task_tile.dart';
+import 'module_access.dart';
 import 'team_providers.dart';
+import 'widgets/login_sheet.dart';
 import 'team_workload.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
@@ -98,6 +101,35 @@ class MemberDetailScreen extends ConsumerWidget {
             if (member.email.isNotEmpty) InfoRow(label: 'Email', value: member.email),
             if (member.phone.isNotEmpty) InfoRow(label: 'Phone', value: member.phone),
           ]),
+        ],
+        if (BackendConfig.isConfigured && ref.watch(isFounderProvider) && member.active) ...[
+          const SizedBox(height: 12),
+          AppCard(
+            shadow: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Sign-in', style: AppText.bodyStrong),
+                const SizedBox(height: 4),
+                Text(
+                  member.email.isEmpty
+                      ? 'Add an email address to this person first (Edit), then create their login.'
+                      : member.hasLogin
+                          ? 'Can sign in with ${member.email}.'
+                          : 'No login yet. Create one so they can sign in.',
+                  style: AppText.caption,
+                ),
+                if (member.email.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  AppButton.secondary(
+                    label: member.hasLogin ? 'Reset password' : 'Create login',
+                    compact: true,
+                    onPressed: () => showLoginSheet(context, member),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
         const SizedBox(height: 16),
         MetricGrid(

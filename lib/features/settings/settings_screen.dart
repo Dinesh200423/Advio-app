@@ -9,6 +9,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../auth/auth_providers.dart';
 import '../../core/update/app_update.dart';
+import '../../data/backend/backend_config.dart';
 import 'settings_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -47,6 +48,7 @@ class SettingsScreen extends ConsumerWidget {
           _Row('Profile', s.headline, Routes.settingsProfile),
           _Row('Business information', s.businessName, Routes.settingsBusiness),
           _Row('Currency', '${currency.code} (${currency.symbol.trim()})', Routes.settingsCurrency),
+          if (BackendConfig.isConfigured) _Row('Change password', null, Routes.changePassword),
         ]),
         const SizedBox(height: 20),
         _Group(title: 'Preferences', rows: [

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/components/components.dart';
 import '../../data/backend/backend_config.dart';
 import '../../features/auth/auth_providers.dart';
+import '../../features/auth/change_password_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
@@ -51,6 +52,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       if (BackendConfig.isConfigured && loc == Routes.signup) return Routes.login;
       if (!auth.loggedIn && !_publicPaths.contains(loc)) return Routes.login;
+      // A temporary password has to be replaced before anything else can be used.
+      if (auth.loggedIn && auth.mustChangePassword && loc != Routes.changePassword) return Routes.changePassword;
       if (auth.loggedIn && (loc == Routes.login || loc == Routes.signup || loc == Routes.onboarding)) return Routes.home;
       if (auth.loggedIn && !pathAllowed(loc, canUse: (m) => ref.read(canUseProvider(m)), isFounder: ref.read(isFounderProvider))) return Routes.home;
       return null;
@@ -70,6 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.onboarding, builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.signup, builder: (_, _) => const SignupScreen()),
+      GoRoute(path: Routes.changePassword, builder: (_, _) => const ChangePasswordScreen()),
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => AppShell(child: child),

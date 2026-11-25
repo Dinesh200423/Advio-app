@@ -9,12 +9,18 @@ import '../team/team_providers.dart';
 import 'session_loader.dart';
 
 class AuthState {
-  const AuthState({this.loggedIn = false, this.onboarded = false});
+  const AuthState({this.loggedIn = false, this.onboarded = false, this.mustChangePassword = false});
   final bool loggedIn;
   final bool onboarded;
 
-  AuthState copyWith({bool? loggedIn, bool? onboarded}) =>
-      AuthState(loggedIn: loggedIn ?? this.loggedIn, onboarded: onboarded ?? this.onboarded);
+  /// The login was created with a temporary password, which has to be replaced before anything else.
+  final bool mustChangePassword;
+
+  AuthState copyWith({bool? loggedIn, bool? onboarded, bool? mustChangePassword}) => AuthState(
+        loggedIn: loggedIn ?? this.loggedIn,
+        onboarded: onboarded ?? this.onboarded,
+        mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+      );
 }
 
 /// Sign-in could not complete. [message] is safe to show.
@@ -50,7 +56,7 @@ class AuthNotifier extends Notifier<AuthState> {
     if (Supabase.instance.client.auth.currentSession == null) return false;
     try {
       await loadSession(ref);
-      state = state.copyWith(loggedIn: true, onboarded: true);
+      state = state.copyWith(loggedIn: true, onboarded: true, mustChangePassword: _needsNewPassword());
       return true;
     } catch (error) {
       // An old or revoked session: fall back to the sign-in screen rather than showing an error at launch.
@@ -89,7 +95,30 @@ class AuthNotifier extends Notifier<AuthState> {
       rethrow;
     }
     _introSeen = true;
-    state = state.copyWith(loggedIn: true, onboarded: true);
+    state = state.copyWith(loggedIn: true, onboarded: true, mustChangePassword: _needsNewPassword());
+  }
+
+  bool _needsNewPassword() => Supabase.instance.client.auth.currentUser?.userMetadata?['must_change_password'] == true;
+
+  /// Replace the password of the signed-in person, and clear the "must change" flag if it was set.
+  Future<void> changePassword(String newPassword) async {
+    if (!BackendConfig.isConfigured) {
+      state = state.copyWith(mustChangePassword: false);
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.updateUser(UserAttributes(password: newPassword, data: {'must_change_password': false}));
+    } on AuthException catch (error) {
+      AppLog.info('Password change refused', data: {'status': error.statusCode});
+      final text = error.message.toLowerCase();
+      if (text.contains('different')) throw const AuthFailure('Choose a password you have not used before.');
+      if (text.contains('weak') || text.contains('short') || text.contains('least')) throw const AuthFailure('That password is too easy to guess. Use at least 8 characters.');
+      throw const AuthFailure('Could not change the password. Please try again.');
+    } catch (error) {
+      AppLog.warning('Password change could not reach the server', error: error);
+      throw const AuthFailure('Could not reach ADVIO. Check your connection and try again.');
+    }
+    state = state.copyWith(mustChangePassword: false);
   }
 
   Future<void> signUp({required String name, required String email, required String password}) async {

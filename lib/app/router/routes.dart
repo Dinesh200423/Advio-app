@@ -8,6 +8,7 @@ abstract final class Routes {
   static const onboarding = '/onboarding';
   static const login = '/login';
   static const signup = '/signup';
+  static const changePassword = '/change-password';
 
   // Primary tabs
   static const home = '/home';
